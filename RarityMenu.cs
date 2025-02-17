@@ -9,9 +9,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using TMPro;
 using UnboundLib;
-using UnboundLib.Cards;
 using UnboundLib.Networking;
 using UnboundLib.Utils;
 using UnboundLib.Utils.UI;
@@ -20,12 +20,10 @@ using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace RarntyMenu
-{
+namespace RarntyMenu {
     [BepInPlugin(ModId, ModName, Version)]
     [BepInProcess("Rounds.exe")]
-    public class RarityMenu : BaseUnityPlugin
-    {
+    public class RarityMenu : BaseUnityPlugin {
         private const string ModId = "Rarity.Toggle";
         private const string ModName = "Rarity Toggle";
         public const string Version = "999.0.0";
@@ -33,34 +31,26 @@ namespace RarntyMenu
         int maxRarity = 2;
         static bool first = true;
 
-        internal static List<CardInfo> defaultCards
-        {
-            get
-            {
+        internal static List<CardInfo> defaultCards {
+            get {
                 return ((CardInfo[])typeof(CardManager).GetField("defaultCards", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null)).ToList();
             }
         }
-        internal static List<CardInfo> activeCards
-        {
-            get
-            {
+        internal static List<CardInfo> activeCards {
+            get {
                 return ((ObservableCollection<CardInfo>)typeof(CardManager).GetField("activeCards", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null)).ToList();
             }
         }
-        internal static List<CardInfo> inactiveCards
-        {
-            get
-            {
+        internal static List<CardInfo> inactiveCards {
+            get {
                 return (List<CardInfo>)typeof(CardManager).GetField("inactiveCards", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
             }
             set { }
         }
 
-        internal static List<CardInfo> allCards
-        {
-            get
-            {
-                var r = CardManager.cards.Values.Select(v=>v.cardInfo).ToList();
+        internal static List<CardInfo> allCards {
+            get {
+                var r = CardManager.cards.Values.Select(v => v.cardInfo).ToList();
                 r.Sort((c1, c2) => c1.cardName.CompareTo(c2.cardName));
                 return r;
             }
@@ -72,56 +62,52 @@ namespace RarntyMenu
         public static Dictionary<string, TextMeshProUGUI> CardRaritysTexts = new Dictionary<string, TextMeshProUGUI>();
         public static Dictionary<string, List<CardInfo>> ModCards = new Dictionary<string, List<CardInfo>>();
 
-        public void Awake()
-        {
+        public void Awake() {
             new Harmony(ModId).PatchAll();
         }
-        public void Start()
-        {
-            Unbound.Instance.ExecuteAfterFrames(60, () =>
-            {
+        public void Start() {
+
+
+            Unbound.Instance.ExecuteAfterFrames(60, () => {
                 string mod = "Vanilla";
                 foreach(CardInfo card in allCards) {
-                        mod = CardManager.cards.Values.First(c => c.cardInfo == card).category;
-                        CardRaritys[card.name] = Config.Bind(ModId, card.name, "DEFAULT", $"Rarity value of card {card.cardName} from {mod}");
-                        CardDefaultRaritys[card.name] = card.rarity;
-                        CardInfo.Rarity cardRarity = RarityUtils.GetRarity(CardRaritys[card.name].Value);
-                        if(cardRarity == CardInfo.Rarity.Common && CardRaritys[card.name].Value != "Common") {
-                            cardRarity = CardDefaultRaritys[card.name];
-                            CardRaritys[card.name].Value = "DEFAULT";
-                        }
-                        card.rarity = cardRarity;
-                        // mod
-                        if(!ModCards.ContainsKey(mod)) ModCards.Add(mod, new List<CardInfo>());
-                        ModCards[mod].Add(card);
+                    mod = CardManager.cards.Values.First(c => c.cardInfo == card).category;
+                    string safeCardName = Regex.Replace(card.name, @"[^0-9a-zA-Z]+", "");
+
+                    CardRaritys[safeCardName] = Config.Bind(ModId, safeCardName, "DEFAULT", $"Rarity value of card {card.cardName} from {mod}");
+                    CardDefaultRaritys[safeCardName] = card.rarity;
+                    CardInfo.Rarity cardRarity = RarityUtils.GetRarity(CardRaritys[safeCardName].Value);
+                    if(cardRarity == CardInfo.Rarity.Common && CardRaritys[safeCardName].Value != "Common") {
+                        cardRarity = CardDefaultRaritys[safeCardName];
+                        CardRaritys[safeCardName].Value = "DEFAULT";
+                    }
+                    card.rarity = cardRarity;
+                    // mod
+                    if(!ModCards.ContainsKey(mod)) ModCards.Add(mod, new List<CardInfo>());
+                    ModCards[mod].Add(card);
                 }
                 maxRarity = Enum.GetValues(typeof(CardInfo.Rarity)).Length - 1;
 
 
                 ready = true;
             });
-            Unbound.RegisterMenu(ModName, delegate () { }, menu => Unbound.Instance.StartCoroutine(SetupGUI(menu)), null, false);
-            Unbound.RegisterHandshake(ModId, this.OnHandShakeCompleted);
+            Unbound.RegisterMenu(ModName, null, menu => Unbound.Instance.StartCoroutine(SetupGUI(menu)), null, false);
+            Unbound.RegisterHandshake(ModId, OnHandShakeCompleted);
             SceneManager.sceneLoaded += (r, d) => first = true;
         }
 
 
-        private void OnHandShakeCompleted()
-        {
-            if (PhotonNetwork.IsMasterClient)
-            {
+        private void OnHandShakeCompleted() {
+            if(PhotonNetwork.IsMasterClient) {
                 NetworkingManager.RPC(typeof(RarityMenu), nameof(SyncSettings), new object[] { CardRaritys.Keys.ToArray(), CardRaritys.Values.Select(c => c.Value).ToArray() });
             }
         }
         [UnboundRPC]
-        private static void SyncSettings(string[] cards, string[] rarities)
-        {
-            if (first)
-            {
+        private static void SyncSettings(string[] cards, string[] rarities) {
+            if(first) {
                 first = false;
                 Dictionary<string, string> cardRarities = new Dictionary<string, string>();
-                for (int i = 0; i < cards.Length; i++)
-                {
+                for(int i = 0; i < cards.Length; i++) {
                     cardRarities[cards[i]] = rarities[i];
                 }
                 allCards.ForEach(c => c.rarity = cardRarities[c.name] != "DEFAULT" ? RarityUtils.GetRarity(cardRarities[c.name]) : CardDefaultRaritys[c.name]);
@@ -129,47 +115,41 @@ namespace RarntyMenu
         }
 
 
-        private IEnumerator SetupGUI(GameObject menu)
-        {
+        private IEnumerator SetupGUI(GameObject menu) {
             yield return new WaitUntil(() => ready);
             yield return new WaitForSecondsRealtime(0.1f);
             NewGUI(menu);
             yield break;
         }
 
-        private void NewGUI(GameObject menu)
-        {
+        private void NewGUI(GameObject menu) {
             MenuHandler.CreateText(ModName, menu, out _, 60, false, null, null, null, null);
-            foreach (string mod in ModCards.Keys.OrderBy(m => m == "Vanilla" ? m : $"Z{m}"))
-            {
+            foreach(string mod in ModCards.Keys.OrderBy(m => m == "Vanilla" ? m : $"Z{m}")) {
                 ModGUI(MenuHandler.CreateMenu(mod, () => { }, menu, 60, true, true, menu.transform.parent.gameObject), mod);
             }
         }
 
-        private void ModGUI(GameObject menu, string mod)
-        {
+        private void ModGUI(GameObject menu, string mod) {
             MenuHandler.CreateText(mod.ToUpper(), menu, out _, 60, false, null, null, null, null);
-            foreach (CardInfo card in ModCards[mod])
-            {
+            foreach(CardInfo card in ModCards[mod]) {
+                string safeCardName = Regex.Replace(card.name, @"[^0-9a-zA-Z]+", "");
+
                 MenuHandler.CreateText(card.cardName, menu, out _, 30, color: CardChoice.instance.GetCardColor(card.colorTheme));
                 Color common = new Color(0.0978f, 0.1088f, 0.1321f);
-                Color c = RarityUtils.GetRarityData(CardRaritys[card.name].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[card.name].Value) : CardDefaultRaritys[card.name]).colorOff;
-                CardRaritysTexts[card.name] = CreateSliderWithoutInput(CardRaritys[card.name].Value, menu, 30, -1, maxRarity, CardRaritys[card.name].Value == "DEFAULT" ? -1 : (int)RarityUtils.GetRarity(CardRaritys[card.name].Value), (value) =>
-                {
+                Color c = RarityUtils.GetRarityData(CardRaritys[safeCardName].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[safeCardName].Value) : CardDefaultRaritys[safeCardName]).colorOff;
+                CardRaritysTexts[safeCardName] = CreateSliderWithoutInput(CardRaritys[safeCardName].Value, menu, 30, -1, maxRarity, CardRaritys[safeCardName].Value == "DEFAULT" ? -1 : (int)RarityUtils.GetRarity(CardRaritys[safeCardName].Value), (value) => {
 
-                    if (value >= 0)
-                        CardRaritys[card.name].Value = RarityUtils.GetRarityData((CardInfo.Rarity)(int)value).name;
+                    if(value >= 0)
+                        CardRaritys[safeCardName].Value = RarityUtils.GetRarityData((CardInfo.Rarity)(int)value).name;
                     else
-                        CardRaritys[card.name].Value = "DEFAULT";
-                    card.rarity = CardRaritys[card.name].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[card.name].Value) : CardDefaultRaritys[card.name];
-                    try
-                    {
+                        CardRaritys[safeCardName].Value = "DEFAULT";
+                    card.rarity = CardRaritys[safeCardName].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[safeCardName].Value) : CardDefaultRaritys[safeCardName];
+                    try {
                         Color common = new Color(0.0978f, 0.1088f, 0.1321f);
-                        Color c = RarityUtils.GetRarityData(CardRaritys[card.name].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[card.name].Value) : CardDefaultRaritys[card.name]).colorOff;
-                        CardRaritysTexts[card.name].text = value >= 0 ? card.rarity.ToString().ToUpper() : "DEFAULT";
-                        CardRaritysTexts[card.name].color = c.Equals(common) ? Color.white : c;
-                    }
-                    catch { }
+                        Color c = RarityUtils.GetRarityData(CardRaritys[safeCardName].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[safeCardName].Value) : CardDefaultRaritys[safeCardName]).colorOff;
+                        CardRaritysTexts[safeCardName].text = value >= 0 ? card.rarity.ToString().ToUpper() : "DEFAULT";
+                        CardRaritysTexts[safeCardName].color = c.Equals(common) ? Color.white : c;
+                    } catch { }
                 }, out _, true, color: c.Equals(common) ? Color.white : c).GetComponentsInChildren<TextMeshProUGUI>()[2];
             }
         }
@@ -177,8 +157,7 @@ namespace RarntyMenu
 
 
         private static GameObject CreateSliderWithoutInput(string text, GameObject parent, int fontSize, float minValue, float maxValue, float defaultValue,
-            UnityAction<float> onValueChangedAction, out Slider slider, bool wholeNumbers = false, Color? sliderColor = null, Slider.Direction direction = Slider.Direction.LeftToRight, bool forceUpper = true, Color? color = null, TMP_FontAsset font = null, Material fontMaterial = null, TextAlignmentOptions? alignmentOptions = null)
-        {
+            UnityAction<float> onValueChangedAction, out Slider slider, bool wholeNumbers = false, Color? sliderColor = null, Slider.Direction direction = Slider.Direction.LeftToRight, bool forceUpper = true, Color? color = null, TMP_FontAsset font = null, Material fontMaterial = null, TextAlignmentOptions? alignmentOptions = null) {
             GameObject sliderObj = MenuHandler.CreateSlider(text, parent, fontSize, minValue, maxValue, defaultValue, onValueChangedAction, out slider, wholeNumbers, sliderColor, direction, forceUpper, color, font, fontMaterial, alignmentOptions);
 
             UnityEngine.GameObject.Destroy(sliderObj.GetComponentInChildren<TMP_InputField>().gameObject);
@@ -190,13 +169,10 @@ namespace RarntyMenu
 
     [Serializable]
     [HarmonyPatch(typeof(ToggleCardsMenuHandler), nameof(ToggleCardsMenuHandler.UpdateVisualsCardObj))]
-    public class Patch
-    {
-        public static void Prefix(GameObject cardObject)
-        {
+    public class Patch {
+        public static void Prefix(GameObject cardObject) {
             Unbound.Instance.ExecuteAfterFrames(15, () => {
-                if (ToggleCardsMenuHandler.cardMenuCanvas.gameObject.activeSelf)
-                {
+                if(ToggleCardsMenuHandler.cardMenuCanvas.gameObject.activeSelf) {
                     string name = cardObject.GetComponentInChildren<CardInfo>().name.Substring(0, cardObject.GetComponentInChildren<CardInfo>().name.Length - 7);
                     cardObject.GetComponentInChildren<CardInfo>().rarity = RarityMenu.CardRaritys[name].Value != "DEFAULT" ? RarityUtils.GetRarity(RarityMenu.CardRaritys[name].Value) : RarityMenu.CardDefaultRaritys[name];
                     cardObject.GetComponentsInChildren<CardRarityColor>().ToList().ForEach(r => r.Toggle(true));
