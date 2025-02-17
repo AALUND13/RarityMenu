@@ -21,6 +21,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace RarntyMenu {
+    [BepInDependency("com.willis.rounds.unbound")]
+    [BepInDependency("root.rarity.lib", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInPlugin(ModId, ModName, Version)]
     [BepInProcess("Rounds.exe")]
     public class RarityMenu : BaseUnityPlugin {
