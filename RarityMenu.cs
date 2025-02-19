@@ -28,7 +28,7 @@ namespace RarntyMenu {
     public class RarityMenu : BaseUnityPlugin {
         private const string ModId = "Rarity.Toggle";
         private const string ModName = "Rarity Toggle";
-        public const string Version = "1000.0.0";
+        public const string Version = "1.0.2";
         bool ready = false;
         int maxRarity = 2;
         static bool first = true;
@@ -75,7 +75,7 @@ namespace RarntyMenu {
                     mod = CardManager.cards.Values.First(c => c.cardInfo == card).category;
 
                     // We remove the special characters from the card name to prevent issues with the config.
-                    string safeCardName = Regex.Replace(card.name, @"[^0-9a-zA-Z]+", "");
+                    string safeCardName = SanitizeText(card.name);
 
                     CardRaritys[safeCardName] = Config.Bind(ModId, safeCardName, "DEFAULT", $"Rarity value of card {card.cardName} from {mod}");
                     CardDefaultRaritys[safeCardName] = card.rarity;
@@ -139,7 +139,7 @@ namespace RarntyMenu {
         private void ModGUI(GameObject menu, string mod) {
             MenuHandler.CreateText(mod.ToUpper(), menu, out _, 60, false, null, null, null, null);
             foreach(CardInfo card in ModCards[mod]) {
-                string safeCardName = Regex.Replace(card.name, @"[^0-9a-zA-Z_]+", "");
+                string safeCardName = SanitizeText(card.name);
 
                 MenuHandler.CreateText(card.cardName, menu, out _, 30, color: CardChoice.instance.GetCardColor(card.colorTheme));
                 Color color = RarityUtils.GetRarityData(CardRaritys[safeCardName].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[safeCardName].Value) : CardDefaultRaritys[safeCardName]).colorOff;
@@ -188,6 +188,10 @@ namespace RarntyMenu {
             return sliderObj;
 
         }
+
+        internal static string SanitizeText(string text) {
+            return Regex.Replace(text, @"[^0-9a-zA-Z_ ]+", "").Trim();
+        }
     }
 
     [Serializable]
@@ -197,7 +201,7 @@ namespace RarntyMenu {
             Unbound.Instance.ExecuteAfterFrames(15, () => {
                 if(ToggleCardsMenuHandler.cardMenuCanvas.gameObject.activeSelf) {
                     string name = cardObject.GetComponentInChildren<CardInfo>().name.Substring(0, cardObject.GetComponentInChildren<CardInfo>().name.Length - 7);
-                    string safeCardName = Regex.Replace(name, @"[^0-9a-zA-Z_]+", "");
+                    string safeCardName = RarityMenu.SanitizeText(name);
 
                     cardObject.GetComponentInChildren<CardInfo>().rarity = RarityMenu.CardRaritys[safeCardName].Value != "DEFAULT" 
                         ? RarityUtils.GetRarity(RarityMenu.CardRaritys[safeCardName].Value) 
