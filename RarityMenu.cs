@@ -28,7 +28,7 @@ namespace RarntyMenu {
     public class RarityMenu : BaseUnityPlugin {
         private const string ModId = "Rarity.Toggle";
         private const string ModName = "Rarity Toggle";
-        public const string Version = "999.0.0";
+        public const string Version = "1000.0.0";
         bool ready = false;
         int maxRarity = 2;
         static bool first = true;
