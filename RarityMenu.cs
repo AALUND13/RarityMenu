@@ -190,7 +190,8 @@ namespace RarntyMenu {
         }
 
         internal static string SanitizeText(string text) {
-            return Regex.Replace(text, @"[^0-9a-zA-Z_ ]+", "").Trim();
+            // Remove special characters from the card name to prevent issues with the config.
+            return Regex.Replace(text, @"[\n\t\\""'\[\]]+", "").Trim();
         }
     }
 
