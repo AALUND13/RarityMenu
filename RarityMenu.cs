@@ -28,7 +28,7 @@ namespace RarntyMenu {
     public class RarityMenu : BaseUnityPlugin {
         private const string ModId = "Rarity.Toggle";
         private const string ModName = "Rarity Toggle";
-        public const string Version = "1.0.2";
+        public const string Version = "1.0.3";
         bool ready = false;
         int maxRarity = 2;
         static bool first = true;
@@ -63,6 +63,9 @@ namespace RarntyMenu {
         public static Dictionary<string, CardInfo.Rarity> CardDefaultRaritys = new Dictionary<string, CardInfo.Rarity>();
         public static Dictionary<string, TextMeshProUGUI> CardRaritysTexts = new Dictionary<string, TextMeshProUGUI>();
         public static Dictionary<string, List<CardInfo>> ModCards = new Dictionary<string, List<CardInfo>>();
+
+        // This regex is used to remove special characters from the card name to prevent issues with the config.
+        private static readonly Regex sanitizeRegex = new Regex(@"[\n\t\\""'\[\]]+", RegexOptions.Compiled);
 
         public void Awake() {
             new Harmony(ModId).PatchAll();
@@ -190,8 +193,7 @@ namespace RarntyMenu {
         }
 
         internal static string SanitizeText(string text) {
-            // Remove special characters from the card name to prevent issues with the config.
-            return Regex.Replace(text, @"[\n\t\\""'\[\]]+", "").Trim();
+            return sanitizeRegex.Replace(text, "");
         }
     }
 
