@@ -28,7 +28,7 @@ namespace RarntyMenu {
     public class RarityMenu : BaseUnityPlugin {
         private const string ModId = "Rarity.Toggle";
         private const string ModName = "Rarity Toggle";
-        public const string Version = "1.0.3";
+        public const string Version = "1.0.4";
         bool ready = false;
         int maxRarity = 2;
         static bool first = true;
@@ -74,10 +74,10 @@ namespace RarntyMenu {
         public void Start() {
             Unbound.Instance.ExecuteAfterFrames(60, () => {
                 string mod = "Vanilla";
+
+                Config.SaveOnConfigSet = false;
                 foreach(CardInfo card in allCards) {
                     mod = CardManager.cards.Values.First(c => c.cardInfo == card).category;
-
-                    // We remove the special characters from the card name to prevent issues with the config.
                     string safeCardName = SanitizeText(card.name);
 
                     CardRaritys[safeCardName] = Config.Bind(ModId, safeCardName, "DEFAULT", $"Rarity value of card {card.cardName} from {mod}");
@@ -94,6 +94,9 @@ namespace RarntyMenu {
 
                     ModCards[mod].Add(card);
                 }
+                Config.Save();
+                Config.SaveOnConfigSet = true;
+
                 maxRarity = Enum.GetValues(typeof(CardInfo.Rarity)).Length - 1;
                 ready = true;
             });
@@ -148,7 +151,6 @@ namespace RarntyMenu {
                 Color color = RarityUtils.GetRarityData(CardRaritys[safeCardName].Value != "DEFAULT" ? RarityUtils.GetRarity(CardRaritys[safeCardName].Value) : CardDefaultRaritys[safeCardName]).colorOff;
                 
                 CardRaritysTexts[safeCardName] = CreateSliderWithoutInput(CardRaritys[safeCardName].Value, menu, 30, -1, maxRarity, CardRaritys[safeCardName].Value == "DEFAULT" ? -1 : (int)RarityUtils.GetRarity(CardRaritys[safeCardName].Value), (value) => {
-
                     if(value >= 0)
                         CardRaritys[safeCardName].Value = RarityUtils.GetRarityData((CardInfo.Rarity)(int)value).name;
                     else
