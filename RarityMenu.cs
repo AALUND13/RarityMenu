@@ -28,7 +28,7 @@ namespace RarntyMenu {
     public class RarityMenu : BaseUnityPlugin {
         private const string ModId = "Rarity.Toggle";
         private const string ModName = "Rarity Toggle";
-        public const string Version = "1.0.4";
+        public const string Version = "1.0.5";
         bool ready = false;
         int maxRarity = 2;
         static bool first = true;
@@ -121,9 +121,9 @@ namespace RarntyMenu {
                     cardRarities[cards[i]] = rarities[i];
                 }
 
-                allCards.ForEach(c => c.rarity = cardRarities[c.name] != "DEFAULT" 
-                    ? RarityUtils.GetRarity(cardRarities[c.name]) 
-                    : CardDefaultRaritys[c.name]);
+                allCards.ForEach(c => c.rarity = cardRarities[SanitizeText(c.name)] != "DEFAULT" 
+                    ? RarityUtils.GetRarity(cardRarities[SanitizeText(c.name)]) 
+                    : CardDefaultRaritys[SanitizeText(c.name)]);
             }
         }
 
